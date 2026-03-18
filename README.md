@@ -12,7 +12,7 @@ Express.js server that handles webhook payment events and processes them asynchr
 | **Retry on failure** | 20 % chance of transient failure → automatic retry |
 | **Console logging** | Pretty-printed `console.table` after each state change |
 
-## Quick Start
+## Start
 
 ```bash
 # Install dependencies
