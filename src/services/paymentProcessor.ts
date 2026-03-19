@@ -1,11 +1,11 @@
-const payments = require('../store');
+import payments from '../store';
+import { Payment } from '../types';
 
-function processPayment(paymentId) {
+export function processPayment(paymentId: string): void {
     const delay = Math.floor(Math.random() * 2000) + 3000; 
 
     console.log(` [Processor] Queued payment ${paymentId} — processing in ${delay}ms`);
 
-    
     const payment = payments.get(paymentId);
     if (!payment) return;
     payment.status = 'processing';
@@ -14,7 +14,6 @@ function processPayment(paymentId) {
         const p = payments.get(paymentId);
         if (!p) return;
 
-        
         if (Math.random() < 0.2) {
             p.status = 'failed';
             p.updatedAt = new Date().toISOString();
@@ -31,7 +30,7 @@ function processPayment(paymentId) {
     }, delay);
 }
 
-function retryPayment(paymentId) {
+function retryPayment(paymentId: string): void {
     const retryDelay = Math.floor(Math.random() * 2000) + 2000;
     console.log(` [Processor] Retrying payment ${paymentId} in ${retryDelay}ms`);
 
@@ -46,8 +45,8 @@ function retryPayment(paymentId) {
     }, retryDelay);
 }
 
-function logTable() {
-    const rows = [...payments.values()].map((p) => ({
+function logTable(): void {
+    const rows = [...payments.values()].map((p: Payment) => ({
         payment_id: p.payment_id,
         user: p.user,
         amount: p.amount,
@@ -58,5 +57,3 @@ function logTable() {
     console.log('\n Current payments:');
     console.table(rows);
 }
-
-module.exports = { processPayment };

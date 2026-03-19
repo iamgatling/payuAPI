@@ -1,20 +1,20 @@
-const { Router } = require('express');
-const payments = require('../store');
-const { processPayment } = require('../services/paymentProcessor');
+import { Router, Request, Response } from 'express';
+import payments from '../store';
+import { processPayment } from '../services/paymentProcessor';
+import { Payment } from '../types';
 
 const router = Router();
 
-router.post('/webhook', (req, res) => {
+router.post('/webhook', (req: Request, res: Response): any => {
     const { payment_id, amount, status, user } = req.body;
 
-    
     if (!payment_id || amount == null || !status || !user) {
         return res.status(400).json({
             error: 'Missing required fields: payment_id, amount, status, user',
         });
     }
 
-    const payment = {
+    const payment: Payment = {
         payment_id,
         amount,
         status,          
@@ -23,11 +23,9 @@ router.post('/webhook', (req, res) => {
         updatedAt: new Date().toISOString(),
     };
 
-    
     console.log('\n [Webhook] Incoming payment event:');
     console.log(JSON.stringify(payment, null, 2));
 
-    
     payments.set(payment_id, payment);
     processPayment(payment_id);
 
@@ -37,9 +35,9 @@ router.post('/webhook', (req, res) => {
     });
 });
 
-router.get('/payments', (_req, res) => {
+router.get('/payments', (_req: Request, res: Response): any => {
     const all = [...payments.values()];
     return res.json({ count: all.length, payments: all });
 });
 
-module.exports = router;
+export default router;
