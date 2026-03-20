@@ -1,52 +1,66 @@
+import { Queue, Worker, Job } from 'bullmq';
+import IORedis from 'ioredis';
 import payments from '../store';
 import { Payment } from '../types';
 
-export function processPayment(paymentId: string): void {
-    const delay = Math.floor(Math.random() * 2000) + 3000; 
+const redisConnection = new IORedis(process.env.REDIS_URL || 'redis://localhost:6379', { maxRetriesPerRequest: null });
 
-    console.log(` [Processor] Queued payment ${paymentId} — processing in ${delay}ms`);
+export const paymentQueue = new Queue('payments', { connection: redisConnection as any });
 
-    const payment = payments.get(paymentId);
-    if (!payment) return;
-    payment.status = 'processing';
+export async function processPayment(paymentId: string): Promise<void> {
+    console.log(` [Processor] Queued payment ${paymentId} in BullMQ`);
 
-    setTimeout(() => {
-        const p = payments.get(paymentId);
-        if (!p) return;
-
-        if (Math.random() < 0.2) {
-            p.status = 'failed';
-            p.updatedAt = new Date().toISOString();
-            console.log(` [Processor] Payment ${paymentId} FAILED — scheduling retry…`);
-            logTable();
-            retryPayment(paymentId);
-            return;
+    await paymentQueue.add('process-payment', { paymentId }, {
+        attempts: 3,
+        backoff: {
+            type: 'exponential',
+            delay: 1000,
         }
-
-        p.status = 'processed';
-        p.updatedAt = new Date().toISOString();
-        console.log(` [Processor] Payment ${paymentId} PROCESSED`);
-        logTable();
-    }, delay);
+    });
 }
 
-function retryPayment(paymentId: string): void {
-    const retryDelay = Math.floor(Math.random() * 2000) + 2000;
-    console.log(` [Processor] Retrying payment ${paymentId} in ${retryDelay}ms`);
+export const paymentWorker = new Worker('payments', async (job: Job) => {
+    const { paymentId } = job.data;
 
-    setTimeout(() => {
-        const p = payments.get(paymentId);
-        if (!p) return;
+    const delay = Math.floor(Math.random() * 2000) + 3000;
+    console.log(` [Processor] Worker processing payment ${paymentId} — simulated delay ${delay}ms`);
+    
+    await new Promise(resolve => setTimeout(resolve, delay));
 
-        p.status = 'processed';
-        p.updatedAt = new Date().toISOString();
-        console.log(` [Processor] Payment ${paymentId} PROCESSED (after retry)`);
-        logTable();
-    }, retryDelay);
-}
+    let payment = await payments.get(paymentId);
+    if (!payment) return;
 
-function logTable(): void {
-    const rows = [...payments.values()].map((p: Payment) => ({
+    await payments.updateStatus(paymentId, 'processing', new Date().toISOString());
+
+    if (Math.random() < 0.2) {
+        throw new Error(`Simulated payment processing failure for ${paymentId}`);
+    }
+
+    await payments.updateStatus(paymentId, 'processed', new Date().toISOString());
+    console.log(` [Processor] Payment ${paymentId} PROCESSED successfully`);
+    await logTable();
+}, { connection: redisConnection as any });
+
+paymentWorker.on('failed', async (job: Job | undefined, err: Error) => {
+    if (!job) return;
+    const { paymentId } = job.data;
+
+    console.log(` [Processor] Payment ${paymentId} FAILED (Attempt ${job.attemptsMade}) - ${err.message}`);
+
+    const maxAttempts = job.opts.attempts || 3;
+    if (job.attemptsMade >= maxAttempts) {
+        await payments.updateStatus(paymentId, 'failed_permanent', new Date().toISOString());
+        console.log(` [Processor] Payment ${paymentId} FAILED PERMANENTLY after ${job.attemptsMade} retries`);
+    } else {
+        await payments.updateStatus(paymentId, 'failed', new Date().toISOString());
+        console.log(` [Processor] Payment ${paymentId} FAILED — BullMQ will schedule retry…`);
+    }
+    await logTable();
+});
+
+async function logTable(): Promise<void> {
+    const all = await payments.getAll();
+    const rows = all.map((p: Payment) => ({
         payment_id: p.payment_id,
         user: p.user,
         amount: p.amount,
