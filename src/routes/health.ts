@@ -1,6 +1,6 @@
 import { Router, Request, Response } from 'express';
 import { db } from '../db';
-import { paymentQueue } from '../services/paymentProcessor';
+import { eventQueue } from '../services/eventProcessor';
 
 const router = Router();
 
@@ -15,7 +15,7 @@ router.get('/health', async (_req: Request, res: Response): Promise<any> => {
     let queueDepth: any = {};
     try {
         queueDepth = await Promise.race([
-            paymentQueue.getJobCounts(),
+            eventQueue.getJobCounts(),
             new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout')), 1000))
         ]);
     } catch (e) {

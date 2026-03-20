@@ -1,8 +1,10 @@
-export interface Payment {
-    payment_id: string;
-    amount: number;
-    status: 'pending' | 'processing' | 'processed' | 'failed' | 'failed_permanent';
-    user: string;
+export interface WebhookEvent {
+    id: string;
+    source: string;
+    eventType: string;
+    reference: string;
+    status: string;
+    payload: Record<string, unknown>;
     receivedAt: string;
     updatedAt: string;
 }
