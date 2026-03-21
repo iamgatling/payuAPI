@@ -9,16 +9,12 @@ import { logger } from './logger';
 import { eventQueue, eventWorker } from './services/eventProcessor';
 
 
-declare module 'http' {
-    interface IncomingMessage {
-        rawBody?: Buffer;
-    }
-}
+// rawBody extension moved to types.ts
 
 
 
 
-const requiredEnvVars = ['API_KEY', 'WEBHOOK_SECRET', 'REDIS_URL'];
+const requiredEnvVars = ['API_KEY', 'WEBHOOK_SECRET', 'REDIS_URL', 'DATABASE_URL'];
 const missingVars = requiredEnvVars.filter(v => !process.env[v]);
 if (missingVars.length > 0) {
     logger.error('Startup', `Missing required environment variables: ${missingVars.join(', ')}`);
@@ -49,7 +45,7 @@ app.get('/', (_req: Request, res: Response) => {
 
 logger.info('Server', 'Starting application... initializing DB');
 
-let server: any;
+let server: http.Server;
 
 initDb().then(() => {
     logger.info('Server', 'DB Initialized');

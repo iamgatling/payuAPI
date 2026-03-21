@@ -44,13 +44,14 @@ export const eventStore = {
   
   async getAll(): Promise<WebhookEvent[]> {
     const records = await db('events').select('*');
-    return records.map((record: any) => {
-        if (typeof record.payload === 'string') {
+    return records.map((record) => {
+        const event = record as WebhookEvent;
+        if (typeof event.payload === 'string') {
             try {
-                record.payload = JSON.parse(record.payload);
+                event.payload = JSON.parse(event.payload);
             } catch (e) {}
         }
-        return record;
+        return event;
     });
   },
   
@@ -65,13 +66,14 @@ export const eventStore = {
       .limit(limit)
       .offset(offset);
 
-    const data = records.map((record: any) => {
-        if (typeof record.payload === 'string') {
+    const data = records.map((record) => {
+        const event = record as WebhookEvent;
+        if (typeof event.payload === 'string') {
             try {
-                record.payload = JSON.parse(record.payload);
+                event.payload = JSON.parse(event.payload);
             } catch (e) {}
         }
-        return record;
+        return event;
     });
 
     return {
@@ -91,13 +93,14 @@ export const eventStore = {
 
   async getDeadLetters(): Promise<WebhookEvent[]> {
     const records = await db('events').where({ status: 'failed_permanent' }).orderBy('updatedAt', 'desc');
-    return records.map((record: any) => {
-        if (typeof record.payload === 'string') {
+    return records.map((record) => {
+        const event = record as WebhookEvent;
+        if (typeof event.payload === 'string') {
             try {
-                record.payload = JSON.parse(record.payload);
+                event.payload = JSON.parse(event.payload);
             } catch (e) {}
         }
-        return record;
+        return event;
     });
   },
 
